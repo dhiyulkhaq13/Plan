@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HTML Viewer</title>
+<meta name="theme-color" content="#1d2433">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{--bg:#f3f4f6;--bar:#1d2433;--bar-fg:#e8ecf4;--ink:#1d2433;--mut:#6b7385;--line:#d5d9e2;--acc:#2f6fed;--surf:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#12151d;--ink:#e8ecf4;--mut:#8f98ad;--line:#2b3244;--surf:#1a1f2b;--bar:#0d1017}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--bar);color:var(--bar-fg);display:flex;align-items:center;gap:8px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top));flex-wrap:wrap}
+h1{font-size:16px;margin:0 auto 0 0;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
+button,.btn{font:inherit;border:1px solid #ffffff33;background:transparent;color:inherit;padding:6px 12px;border-radius:6px;cursor:pointer}
+button:hover,.btn:hover{background:#ffffff1a}
+button:focus-visible,.btn:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.primary:hover{background:#2560d6}
+.tabs{display:flex;gap:4px;background:var(--surf);border-bottom:1px solid var(--line);padding:0 8px}
+.tabs button{color:var(--mut);border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 14px}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--acc)}
+main{flex:1;min-height:0;display:flex;position:relative}
+.pane{flex:1;min-width:0;display:none}
+.pane.on{display:block}
+iframe{width:100%;height:100%;border:0;background:#fff}
+textarea{width:100%;height:100%;border:0;resize:none;padding:14px;background:var(--surf);color:var(--ink);font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;tab-size:2}
+.empty{height:100%;display:grid;place-items:center;text-align:center;padding:24px}
+.empty div{max-width:420px}
+.empty h2{margin:0 0 6px;font-size:20px}
+.empty p{color:var(--mut);margin:0 0 16px}
+.empty .btn{color:#fff}
+aside{width:260px;background:var(--surf);border-left:1px solid var(--line);overflow:auto;display:none}
+aside.on{display:block}
+aside h3{margin:0;padding:12px 14px;font-size:13px;color:var(--mut);border-bottom:1px solid var(--line)}
+aside li{list-style:none;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+aside li:hover{background:var(--bg)}
+aside ul{margin:0;padding:0}
+aside small{color:var(--mut);display:block}
+aside .x{border:0;color:var(--mut);padding:0 6px}
+.drop{position:absolute;inset:0;background:#2f6fedcc;color:#fff;display:none;place-items:center;font-size:20px;z-index:5}
+.drop.on{display:grid}
+@media(max-width:700px){aside{position:absolute;right:0;top:0;bottom:0;box-shadow:-4px 0 12px #0004;z-index:4}}
+body.full header,body.full .tabs{display:none}
+#exit{display:none;position:fixed;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:9;background:var(--bar);padding:6px 10px}
+body.full #exit{display:block}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">HTML Viewer</h1>
+  <label class="btn primary" tabindex="0" id="openLbl">Buka file<input id="file" type="file" accept=".html,.htm,text/html" hidden></label>
+  <button id="recentBtn" aria-expanded="false">Riwayat</button>
+  <button id="fullBtn">Layar penuh</button>
+  <button id="installBtn" hidden>Instal</button>
+</header>
+<div class="tabs" role="tablist">
+  <button role="tab" id="tPrev" aria-selected="true">Pratinjau</button>
+  <button role="tab" id="tCode" aria-selected="false">Kode</button>
+  <button id="run" hidden style="margin-left:auto;color:var(--acc)">Jalankan</button>
+</div>
+<main id="main">
+  <section class="pane on" id="pPrev">
+    <div class="empty" id="empty"><div>
+      <h2>Belum ada halaman</h2>
+      <p>Buka file .html, seret ke jendela ini, atau tempel kode di tab Kode.</p>
+      <label class="btn primary" style="display:inline-block">Buka file<input id="file2" type="file" accept=".html,.htm,text/html" hidden></label>
+    </div></div>
+    <iframe id="frame" title="Pratinjau" sandbox="allow-scripts allow-forms allow-modals allow-popups" hidden></iframe>
+  </section>
+  <section class="pane" id="pCode"><textarea id="code" spellcheck="false" placeholder="Tempel kode HTML di sini, lalu tekan Jalankan"></textarea></section>
+  <aside id="recent"><h3>Riwayat terakhir</h3><ul id="list"></ul></aside>
+  <div class="drop" id="drop">Lepas file HTML di sini</div>
+</main>
+<button id="exit">Keluar layar penuh</button>
+<script>
+const $=s=>document.getElementById(s);
+const KEY='htmlviewer.recent';
+let current={name:'',text:''};
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
+function save(list){try{localStorage.setItem(KEY,JSON.stringify(list))}catch(e){}}
+function show(name,text,remember=true){
+  current={name,text};
+  $('title').textContent=name||'HTML Viewer';
+  document.title=(name?name+' – ':'')+'HTML Viewer';
+  $('empty').hidden=true;$('frame').hidden=false;
+  $('frame').srcdoc=text;
+  $('code').value=text;
+  if(remember&&text.length<500000){
+    let l=load().filter(i=>i.name!==name);
+    l.unshift({name,text,time:Date.now()});
+    save(l.slice(0,8));renderList();
+  }
+  tab('prev');
+}
+function renderList(){
+  const l=load(),ul=$('list');ul.textContent='';
+  if(!l.length){const li=document.createElement('li');li.textContent='Belum ada riwayat';li.style.cursor='default';ul.append(li);return}
+  l.forEach((it,i)=>{
+    const li=document.createElement('li');
+    const d=document.createElement('div');
+    d.textContent=it.name;
+    const s=document.createElement('small');s.textContent=new Date(it.time).toLocaleString('id-ID');d.append(s);
+    const x=document.createElement('button');x.className='x';x.textContent='✕';x.title='Hapus';x.setAttribute('aria-label','Hapus '+it.name);
+    x.onclick=e=>{e.stopPropagation();const n=load();n.splice(i,1);save(n);renderList()};
+    li.append(d,x);
+    li.onclick=()=>{show(it.name,it.text,false);toggleRecent(false)};
+    ul.append(li);
+  });
+}
+function toggleRecent(on){
+  const a=$('recent');const v=on===undefined?!a.classList.contains('on'):on;
+  a.classList.toggle('on',v);$('recentBtn').setAttribute('aria-expanded',v);
+}
+function tab(t){
+  const p=t==='prev';
+  $('pPrev').classList.toggle('on',p);$('pCode').classList.toggle('on',!p);
+  $('tPrev').setAttribute('aria-selected',p);$('tCode').setAttribute('aria-selected',!p);
+  $('run').hidden=p;
+}
+async function readFile(f){
+  if(!f)return;
+  show(f.name,await f.text());
+}
+$('file').onchange=e=>{readFile(e.target.files[0]);e.target.value=''};
+$('file2').onchange=e=>{readFile(e.target.files[0]);e.target.value=''};
+$('openLbl').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click()}};
+$('tPrev').onclick=()=>tab('prev');
+$('tCode').onclick=()=>tab('code');
+$('run').onclick=()=>{const t=$('code').value;if(t.trim())show(current.name||'Kode tempel',t)};
+$('recentBtn').onclick=()=>toggleRecent();
+$('fullBtn').onclick=()=>{document.body.classList.add('full');document.documentElement.requestFullscreen?.().catch(()=>{})};
+$('exit').onclick=()=>{document.body.classList.remove('full');if(document.fullscreenElement)document.exitFullscreen()};
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement)document.body.classList.remove('full')});
+$('code').addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();document.execCommand('insertText',false,'  ')}
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();$('run').click()}
+});
+// seret & lepas
+let dc=0;
+addEventListener('dragenter',e=>{e.preventDefault();dc++;$('drop').classList.add('on')});
+addEventListener('dragleave',e=>{dc--;if(dc<=0){dc=0;$('drop').classList.remove('on')}});
+addEventListener('dragover',e=>e.preventDefault());
+addEventListener('drop',e=>{e.preventDefault();dc=0;$('drop').classList.remove('on');readFile(e.dataTransfer.files[0])});
+// buka file dari sistem (setelah diinstal)
+if('launchQueue' in window){
+  launchQueue.setConsumer(async p=>{
+    if(!p.files.length)return;
+    const f=await p.files[0].getFile();readFile(f);
+  });
+}
+// instal
+let deferred;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('installBtn').hidden=false});
+$('installBtn').onclick=async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;$('installBtn').hidden=true};
+addEventListener('appinstalled',()=>{$('installBtn').hidden=true});
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+renderList();
+(async()=>{
+  const q=new URLSearchParams(location.search);
+  if(q.get('tab')==='code')tab('code');
+  if(q.get('recent'))toggleRecent(true);
+  if(q.get('shared')){
+    try{
+      const c=await caches.open('shared'),r=await c.match('shared-file');
+      if(r){show(decodeURIComponent(r.headers.get('x-name')),await r.text());await c.delete('shared-file')}
+    }catch(e){}
+    history.replaceState(null,'',location.pathname);
+  }
+})();
+</script>
+</body>
+</html>

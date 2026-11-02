@@ -1,6 +1,6 @@
-const CACHE='html-viewer-v2';
-const FILES=['./','index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','screenshots/wide.png','screenshots/narrow.png'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()))});
+const CACHE='html-viewer-v3';
+const FILES=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png','screenshot-wide.png','screenshot-narrow.png'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(FILES.map(f=>c.add(f)))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==CACHE&&n!=='shared').map(n=>caches.delete(n)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
   const r=e.request,u=new URL(r.url);
